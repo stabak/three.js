@@ -44,7 +44,10 @@
   "devDependencies": {
     "argparse": "^1.0.3",
     "jscs": "^1.13.1",
-    "rollup": "^0.36.3",
+    "rollup": "^0.36.3",    
+	"rollup-plugin-babel": "^2.6.1",
+    "rollup-plugin-commonjs": "^5.0.5",
+    "rollup-plugin-node-resolve": "^2.0.0",
     "rollup-watch": "^2.5.0",
     "uglify-js": "^2.6.0"
   }

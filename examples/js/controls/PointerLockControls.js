@@ -2,16 +2,20 @@
  * @author mrdoob / http://mrdoob.com/
  */
 
-THREE.PointerLockControls = function ( camera ) {
+import {Vector3} from '../../../src/math/Vector3'
+import {Euler} from '../../../src/math/Euler'
+import {Object3D} from '../../../src/core/Object3D'
+
+function PointerLockControls( camera ) {
 
 	var scope = this;
 
 	camera.rotation.set( 0, 0, 0 );
 
-	var pitchObject = new THREE.Object3D();
+	var pitchObject = new Object3D();
 	pitchObject.add( camera );
 
-	var yawObject = new THREE.Object3D();
+	var yawObject = new Object3D();
 	yawObject.position.y = 10;
 	yawObject.add( pitchObject );
 
@@ -51,8 +55,8 @@ THREE.PointerLockControls = function ( camera ) {
 
 		// assumes the camera itself is not rotated
 
-		var direction = new THREE.Vector3( 0, 0, - 1 );
-		var rotation = new THREE.Euler( 0, 0, 0, "YXZ" );
+		var direction = new Vector3( 0, 0, - 1 );
+		var rotation = new Euler( 0, 0, 0, "YXZ" );
 
 		return function( v ) {
 
@@ -66,4 +70,6 @@ THREE.PointerLockControls = function ( camera ) {
 
 	}();
 
-};
+}
+
+export {PointerLockControls}

@@ -1,21 +1,26 @@
 /**
  * @author alteredq / http://alteredqualia.com/
  */
+import {TextureFilter} from '../../../src/constants'
+import {RGBAFormat} from '../../../src/constants'
+import {ShaderPass} from '../../../examples/js/postprocessing/ShaderPass'
+import {CopyShader} from '../../../examples/js/shaders/CopyShader'
+import {WebGLRenderTarget} from '../../../src/renderers/WebGLRenderTarget'
 
-THREE.EffectComposer = function ( renderer, renderTarget ) {
+function EffectComposer( renderer, renderTarget ) {
 
 	this.renderer = renderer;
 
 	if ( renderTarget === undefined ) {
 
 		var parameters = {
-			minFilter: THREE.LinearFilter,
-			magFilter: THREE.LinearFilter,
-			format: THREE.RGBAFormat,
+			minFilter: TextureFilter.LinearFilter,
+			magFilter: TextureFilter.LinearFilter,
+			format: RGBAFormat,
 			stencilBuffer: false
 		};
 		var size = renderer.getSize();
-		renderTarget = new THREE.WebGLRenderTarget( size.width, size.height, parameters );
+		renderTarget = new WebGLRenderTarget( size.width, size.height, parameters );
 
 	}
 
@@ -27,14 +32,14 @@ THREE.EffectComposer = function ( renderer, renderTarget ) {
 
 	this.passes = [];
 
-	if ( THREE.CopyShader === undefined )
+	if ( CopyShader === undefined )
 		console.error( "THREE.EffectComposer relies on THREE.CopyShader" );
 
-	this.copyPass = new THREE.ShaderPass( THREE.CopyShader );
+	this.copyPass = new ShaderPass( CopyShader );
 
-};
+}
 
-Object.assign( THREE.EffectComposer.prototype, {
+Object.assign( EffectComposer.prototype, {
 
 	swapBuffers: function() {
 
@@ -146,7 +151,7 @@ Object.assign( THREE.EffectComposer.prototype, {
 } );
 
 
-THREE.Pass = function () {
+function Pass () {
 
 	// if set to true, the pass is processed by the composer
 	this.enabled = true;
@@ -160,9 +165,9 @@ THREE.Pass = function () {
 	// if set to true, the result of the pass is rendered to screen
 	this.renderToScreen = false;
 
-};
+}
 
-Object.assign( THREE.Pass.prototype, {
+Object.assign( Pass.prototype, {
 
 	setSize: function( width, height ) {},
 
@@ -173,3 +178,6 @@ Object.assign( THREE.Pass.prototype, {
 	}
 
 } );
+
+export {EffectComposer}
+export {Pass}

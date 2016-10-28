@@ -8,12 +8,14 @@
  * http://www.glge.org/demos/fxaa/
  */
 
-THREE.FXAAShader = {
+import {Vector2} from '../../../src/math/Vector2'
+
+export var FXAAShader = {
 
 	uniforms: {
 
 		"tDiffuse":   { value: null },
-		"resolution": { value: new THREE.Vector2( 1 / 1024, 1 / 512 ) }
+		"resolution": { value: new Vector2( 1 / 1024, 1 / 512 ) }
 
 	},
 

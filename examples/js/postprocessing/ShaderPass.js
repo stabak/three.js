@@ -2,13 +2,21 @@
  * @author alteredq / http://alteredqualia.com/
  */
 
-THREE.ShaderPass = function ( shader, textureID ) {
+import {Pass} from './EffectComposer'
+import {Mesh} from '../../../src/objects/Mesh'
+import {Scene} from '../../../src/scenes/Scene'
+import {UniformsUtils} from '../../../src/renderers/shaders/UniformsUtils'
+import {ShaderMaterial} from '../../../src/materials/ShaderMaterial'
+import {OrthographicCamera} from '../../../src/cameras/OrthographicCamera'
+import {PlaneBufferGeometry} from '../../../src/geometries/PlaneBufferGeometry'
 
-	THREE.Pass.call( this );
+function ShaderPass ( shader, textureID ) {
+
+	Pass.call( this );
 
 	this.textureID = ( textureID !== undefined ) ? textureID : "tDiffuse";
 
-	if ( shader instanceof THREE.ShaderMaterial ) {
+	if ( shader instanceof ShaderMaterial ) {
 
 		this.uniforms = shader.uniforms;
 
@@ -16,9 +24,9 @@ THREE.ShaderPass = function ( shader, textureID ) {
 
 	} else if ( shader ) {
 
-		this.uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+		this.uniforms = UniformsUtils.clone( shader.uniforms );
 
-		this.material = new THREE.ShaderMaterial( {
+		this.material = new ShaderMaterial( {
 
 			defines: shader.defines || {},
 			uniforms: this.uniforms,
@@ -29,17 +37,17 @@ THREE.ShaderPass = function ( shader, textureID ) {
 
 	}
 
-	this.camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	this.scene = new THREE.Scene();
+	this.camera = new OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+	this.scene = new Scene();
 
-	this.quad = new THREE.Mesh( new THREE.PlaneBufferGeometry( 2, 2 ), null );
+	this.quad = new Mesh( new PlaneBufferGeometry( 2, 2 ), null );
 	this.scene.add( this.quad );
 
 };
 
-THREE.ShaderPass.prototype = Object.assign( Object.create( THREE.Pass.prototype ), {
+ShaderPass.prototype = Object.assign( Object.create( Pass.prototype ), {
 
-	constructor: THREE.ShaderPass,
+	constructor: ShaderPass,
 
 	render: function( renderer, writeBuffer, readBuffer, delta, maskActive ) {
 
@@ -64,3 +72,5 @@ THREE.ShaderPass.prototype = Object.assign( Object.create( THREE.Pass.prototype 
 	}
 
 } );
+
+export { ShaderPass };
