@@ -1,11 +1,3 @@
-
-var outro = `
-Object.defineProperty( exports, 'AudioContext', {
-	get: function () {
-		return exports.getAudioContext();
-	}
-});`;
-
 function glsl () {
 	return {
 		transform ( code, id ) {
@@ -29,9 +21,6 @@ const babel = require('rollup-plugin-babel'), nodeResolve = require( 'rollup-plu
 
 export default {
     entry: 'src/Three.js',
-    dest: 'build/three.js',
-    moduleName: 'THREE',
-    format: 'umd',
     indent: '\t',
     plugins: [
         glsl()
@@ -52,7 +41,16 @@ export default {
             include: './node_modules/**'
         })
     ],
-
-    outro: outro
+    targets: [
+        {
+            format: 'umd',
+            moduleName: 'THREE',
+            dest: 'build/three.js'
+        },
+        {
+            format: 'es',
+            dest: 'build/three.modules.js'
+        }
+    ],
+    sourceMap: true
 };
-

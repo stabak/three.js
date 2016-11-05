@@ -9248,7 +9248,7 @@ function WebGLShadowMap( _renderer, _lights, _objects, capabilities ) {
 		if ( _lightShadows.length === 0 ) return;
 
 		// Set GL state for depth map.
-		_state.clearColor( 1, 1, 1, 1 );
+		_state.buffers.color.setClear( 1, 1, 1, 1 );
 		_state.disable( _gl.BLEND );
 		_state.setDepthTest( true );
 		_state.setScissorTest( false );
@@ -18202,7 +18202,13 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 
 			},
 
-			setClear: function ( r, g, b, a ) {
+			setClear: function ( r, g, b, a, premultipliedAlpha ) {
+
+				if ( premultipliedAlpha === true ) {
+
+					r *= a; g *= a; b *= a;
+
+				}
 
 				color.set( r, g, b, a );
 
@@ -18537,9 +18543,9 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 
 	function init() {
 
-		clearColor( 0, 0, 0, 1 );
-		clearDepth( 1 );
-		clearStencil( 0 );
+		colorBuffer.setClear( 0, 0, 0, 1 );
+		depthBuffer.setClear( 1 );
+		stencilBuffer.setClear( 0 );
 
 		enable( gl.DEPTH_TEST );
 		setDepthFunc( LessEqualDepth );
@@ -19018,26 +19024,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 
 	}
 
-	// TODO Deprecate
-
-	function clearColor( r, g, b, a ) {
-
-		colorBuffer.setClear( r, g, b, a );
-
-	}
-
-	function clearDepth( depth ) {
-
-		depthBuffer.setClear( depth );
-
-	}
-
-	function clearStencil( stencil ) {
-
-		stencilBuffer.setClear( stencil );
-
-	}
-
 	//
 
 	function scissor( scissor ) {
@@ -19136,10 +19122,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 		bindTexture: bindTexture,
 		compressedTexImage2D: compressedTexImage2D,
 		texImage2D: texImage2D,
-
-		clearColor: clearColor,
-		clearDepth: clearDepth,
-		clearStencil: clearStencil,
 
 		scissor: scissor,
 		viewport: viewport,
@@ -19774,18 +19756,6 @@ function WebGLRenderer( parameters ) {
 
 	}
 
-	function glClearColor( r, g, b, a ) {
-
-		if ( _premultipliedAlpha === true ) {
-
-			r *= a; g *= a; b *= a;
-
-		}
-
-		state.clearColor( r, g, b, a );
-
-	}
-
 	function setDefaultGLState() {
 
 		state.init();
@@ -19793,7 +19763,7 @@ function WebGLRenderer( parameters ) {
 		state.scissor( _currentScissor.copy( _scissor ).multiplyScalar( _pixelRatio ) );
 		state.viewport( _currentViewport.copy( _viewport ).multiplyScalar( _pixelRatio ) );
 
-		glClearColor( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha );
+		state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
 
 	}
 
@@ -19937,7 +19907,7 @@ function WebGLRenderer( parameters ) {
 
 		_clearAlpha = alpha !== undefined ? alpha : 1;
 
-		glClearColor( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha );
+		state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
 
 	};
 
@@ -19951,7 +19921,7 @@ function WebGLRenderer( parameters ) {
 
 		_clearAlpha = alpha;
 
-		glClearColor( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha );
+		state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
 
 	};
 
@@ -20661,11 +20631,11 @@ function WebGLRenderer( parameters ) {
 
 		if ( background === null ) {
 
-			glClearColor( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha );
+			state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
 
 		} else if ( background && background.isColor ) {
 
-			glClearColor( background.r, background.g, background.b, 1 );
+			state.buffers.color.setClear( background.r, background.g, background.b, 1, _premultipliedAlpha );
 			forceClear = true;
 
 		}
@@ -21194,7 +21164,7 @@ function WebGLRenderer( parameters ) {
 				material.needsUpdate = true;
 
 			} else if ( materialProperties.numClippingPlanes !== undefined &&
-				( materialProperties.numClippingPlanes !== _clipping.numPlanes || 
+				( materialProperties.numClippingPlanes !== _clipping.numPlanes ||
  				  materialProperties.numIntersection  !== _clipping.numIntersection ) ) {
 
 				material.needsUpdate = true;
@@ -22285,6 +22255,184 @@ function WebGLRenderer( parameters ) {
 
 		return 0;
 
+	}
+
+}
+
+/**
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+function WebGL2Renderer( parameters ) {
+
+	console.log( 'THREE.WebGL2Renderer', REVISION );
+
+	parameters = parameters || {};
+
+	var _canvas = parameters.canvas !== undefined ? parameters.canvas : document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' ),
+	_context = parameters.context !== undefined ? parameters.context : null,
+
+	_alpha = parameters.alpha !== undefined ? parameters.alpha : false,
+	_depth = parameters.depth !== undefined ? parameters.depth : true,
+	_stencil = parameters.stencil !== undefined ? parameters.stencil : true,
+	_antialias = parameters.antialias !== undefined ? parameters.antialias : false,
+	_premultipliedAlpha = parameters.premultipliedAlpha !== undefined ? parameters.premultipliedAlpha : true,
+	_preserveDrawingBuffer = parameters.preserveDrawingBuffer !== undefined ? parameters.preserveDrawingBuffer : false;
+
+	// initialize
+
+	var gl;
+
+	try {
+
+		var attributes = {
+			alpha: _alpha,
+			depth: _depth,
+			stencil: _stencil,
+			antialias: _antialias,
+			premultipliedAlpha: _premultipliedAlpha,
+			preserveDrawingBuffer: _preserveDrawingBuffer
+		};
+
+		gl = _context || _canvas.getContext( 'webgl2', attributes );
+
+		if ( gl === null ) {
+
+			if ( _canvas.getContext( 'webgl2' ) !== null ) {
+
+				throw 'Error creating WebGL2 context with your selected attributes.';
+
+			} else {
+
+				throw 'Error creating WebGL2 context.';
+
+			}
+
+		}
+
+		_canvas.addEventListener( 'webglcontextlost', onContextLost, false );
+
+	} catch ( error ) {
+
+		console.error( 'THREE.WebGL2Renderer: ' + error );
+
+	}
+
+	//
+
+	var _this = this,
+
+		_autoClear = true,
+		_autoClearColor = true,
+		_autoClearDepth = true,
+		_autoClearStencil = true,
+
+		_clearColor = new Color( 0x000000 ),
+		_clearAlpha = 0,
+
+		_width = _canvas.width,
+		_height = _canvas.height,
+
+		_pixelRatio = 1,
+
+		_viewport = new Vector4( 0, 0, _width, _height );
+
+	var extensions = new WebGLExtensions( gl );
+	var state = new WebGLState( gl, extensions, function () {} );
+
+	//
+
+	function clear( color, depth, stencil ) {
+
+		var bits = 0;
+
+		if ( color === undefined || color ) bits |= gl.COLOR_BUFFER_BIT;
+		if ( depth === undefined || depth ) bits |= gl.DEPTH_BUFFER_BIT;
+		if ( stencil === undefined || stencil ) bits |= gl.STENCIL_BUFFER_BIT;
+
+		gl.clear( bits );
+
+	}
+
+	function setPixelRatio( value ) {
+
+		if ( value === undefined ) return;
+
+		_pixelRatio = value;
+
+		setSize( _viewport.z, _viewport.w, false );
+
+	}
+
+	function setSize( width, height, updateStyle ) {
+
+		_width = width;
+		_height = height;
+
+		_canvas.width = width * _pixelRatio;
+		_canvas.height = height * _pixelRatio;
+
+		if ( updateStyle !== false ) {
+
+			_canvas.style.width = width + 'px';
+			_canvas.style.height = height + 'px';
+
+		}
+
+		setViewport( 0, 0, width, height );
+
+	}
+
+	function setViewport( x, y, width, height ) {
+
+		state.viewport( _viewport.set( x, y, width, height ) );
+
+	}
+
+	function render( scene, camera ) {
+
+		if ( camera !== undefined && camera.isCamera !== true ) {
+
+			console.error( 'THREE.WebGL2Renderer.render: camera is not an instance of THREE.Camera.' );
+			return;
+
+		}
+
+		var background = scene.background;
+		var forceClear = false;
+
+		if ( background === null ) {
+
+			state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
+
+		} else if ( background && background.isColor ) {
+
+			state.buffers.color.setClear( background.r, background.g, background.b, 1, _premultipliedAlpha );
+			forceClear = true;
+
+		}
+
+		if ( _autoClear || forceClear ) {
+
+			this.clear( _autoClearColor, _autoClearDepth, _autoClearStencil );
+
+		}
+
+	}
+
+	function onContextLost( event ) {
+
+		event.preventDefault();
+
+	}
+
+	return {
+		domElement: _canvas,
+
+		clear: clear,
+		setPixelRatio: setPixelRatio,
+		setSize: setSize,
+		render: render
 	}
 
 }
@@ -27195,136 +27343,174 @@ LatheGeometry.prototype = Object.create( Geometry.prototype );
 LatheGeometry.prototype.constructor = LatheGeometry;
 
 /**
- * @author jonobr1 / http://jonobr1.com
+ * @author Mugen87 / https://github.com/Mugen87
  *
- * Creates a one-sided polygonal geometry from a path shape. Similar to
- * ExtrudeGeometry.
+ * Creates a one-sided polygonal geometry from one or more shapes.
  *
- * parameters = {
- *
- *	curveSegments: <int>, // number of points on the curves. NOT USED AT THE MOMENT.
- *
- *	material: <int> // material index for front and back faces
- *	uvGenerator: <Object> // object that provides UV generator functions
- *
- * }
  **/
 
-function ShapeGeometry( shapes, options ) {
+function ShapeBufferGeometry( shapes, curveSegments ) {
 
-	Geometry.call( this );
+	BufferGeometry.call( this );
 
-	this.type = 'ShapeGeometry';
+	this.type = 'ShapeBufferGeometry';
 
-	if ( Array.isArray( shapes ) === false ) shapes = [ shapes ];
+	this.parameters = {
+		shapes: shapes,
+		curveSegments: curveSegments
+	};
 
-	this.addShapeList( shapes, options );
+	curveSegments = curveSegments || 12;
 
-	this.computeFaceNormals();
+	var vertices = [];
+	var normals = [];
+	var uvs = [];
+	var indices = [];
 
-}
+	var groupStart = 0;
+	var groupCount = 0;
 
-ShapeGeometry.prototype = Object.create( Geometry.prototype );
-ShapeGeometry.prototype.constructor = ShapeGeometry;
+	// allow single and array values for "shapes" parameter
 
-/**
- * Add an array of shapes to THREE.ShapeGeometry.
- */
-ShapeGeometry.prototype.addShapeList = function ( shapes, options ) {
+	if ( Array.isArray( shapes ) === false ) {
 
-	for ( var i = 0, l = shapes.length; i < l; i ++ ) {
+		addShape( shapes );
 
-		this.addShape( shapes[ i ], options );
+	} else {
+
+		for ( var i = 0; i < shapes.length; i++ ) {
+
+			addShape( shapes[ i ] );
+
+			this.addGroup( groupStart, groupCount, i ); // enables MultiMaterial support
+
+			groupStart += groupCount;
+			groupCount = 0;
+
+		}
 
 	}
 
-	return this;
+	// build geometry
 
-};
+	this.setIndex( ( indices.length > 65535 ? Uint32Attribute : Uint16Attribute )( indices, 1 ) );
+	this.addAttribute( 'position', Float32Attribute( vertices, 3 ) );
+	this.addAttribute( 'normal', Float32Attribute( normals, 3 ) );
+	this.addAttribute( 'uv', Float32Attribute( uvs, 2 ) );
 
-/**
- * Adds a shape to THREE.ShapeGeometry, based on THREE.ExtrudeGeometry.
- */
-ShapeGeometry.prototype.addShape = function ( shape, options ) {
 
-	if ( options === undefined ) options = {};
-	var curveSegments = options.curveSegments !== undefined ? options.curveSegments : 12;
+	// helper functions
 
-	var material = options.material;
-	var uvgen = options.UVGenerator === undefined ? ExtrudeGeometry.WorldUVGenerator : options.UVGenerator;
+	function addShape( shape ) {
 
-	//
+		var i, l, shapeHole;
 
-	var i, l, hole;
+		var indexOffset = vertices.length / 3;
+		var points = shape.extractPoints( curveSegments );
 
-	var shapesOffset = this.vertices.length;
-	var shapePoints = shape.extractPoints( curveSegments );
+		var shapeVertices = points.shape;
+		var shapeHoles = points.holes;
 
-	var vertices = shapePoints.shape;
-	var holes = shapePoints.holes;
+		// check direction of vertices
 
-	var reverse = ! ShapeUtils.isClockWise( vertices );
+		if ( ShapeUtils.isClockWise( shapeVertices ) === false ) {
 
-	if ( reverse ) {
+			shapeVertices = shapeVertices.reverse();
 
-		vertices = vertices.reverse();
+			// also check if holes are in the opposite direction
 
-		// Maybe we should also check if holes are in the opposite direction, just to be safe...
+			for ( i = 0, l = shapeHoles.length; i < l; i ++ ) {
 
-		for ( i = 0, l = holes.length; i < l; i ++ ) {
+				shapeHole = shapeHoles[ i ];
 
-			hole = holes[ i ];
+				if ( ShapeUtils.isClockWise( shapeHole ) === true ) {
 
-			if ( ShapeUtils.isClockWise( hole ) ) {
+					shapeHoles[ i ] = shapeHole.reverse();
 
-				holes[ i ] = hole.reverse();
+				}
 
 			}
 
 		}
 
-		reverse = false;
+		var faces = ShapeUtils.triangulateShape( shapeVertices, shapeHoles );
+
+		// join vertices of inner and outer paths to a single array
+
+		for ( i = 0, l = shapeHoles.length; i < l; i ++ ) {
+
+			shapeHole = shapeHoles[ i ];
+			shapeVertices = shapeVertices.concat( shapeHole );
+
+		}
+
+		// vertices, normals, uvs
+
+		for ( i = 0, l = shapeVertices.length; i < l; i ++ ) {
+
+			var vertex = shapeVertices[ i ];
+
+			vertices.push( vertex.x, vertex.y, 0 );
+			normals.push( 0, 0, 1 );
+			uvs.push( vertex.x, vertex.y ); // world uvs
+
+		}
+
+		// incides
+
+		for ( i = 0, l = faces.length; i < l; i ++ ) {
+
+			var face = faces[ i ];
+
+			var a = face[ 0 ] + indexOffset;
+			var b = face[ 1 ] + indexOffset;
+			var c = face[ 2 ] + indexOffset;
+
+			indices.push( a, b, c );
+			groupCount += 3;
+
+		}
 
 	}
 
-	var faces = ShapeUtils.triangulateShape( vertices, holes );
+}
 
-	// Vertices
+ShapeBufferGeometry.prototype = Object.create( BufferGeometry.prototype );
+ShapeBufferGeometry.prototype.constructor = ShapeBufferGeometry;
 
-	for ( i = 0, l = holes.length; i < l; i ++ ) {
+/**
+ * @author jonobr1 / http://jonobr1.com
+ *
+ * Creates a one-sided polygonal geometry from a path shape.
+ *
+ **/
 
-		hole = holes[ i ];
-		vertices = vertices.concat( hole );
+function ShapeGeometry( shapes, curveSegments ) {
 
-	}
+	Geometry.call( this );
 
-	//
+	this.type = 'ShapeGeometry';
 
-	var vert, vlen = vertices.length;
-	var face, flen = faces.length;
+	if ( typeof curveSegments === 'object' ) {
 
-	for ( i = 0; i < vlen; i ++ ) {
+		console.warn( 'THREE.ShapeGeometry: Options parameter has been removed.' );
 
-		vert = vertices[ i ];
-
-		this.vertices.push( new Vector3( vert.x, vert.y, 0 ) );
-
-	}
-
-	for ( i = 0; i < flen; i ++ ) {
-
-		face = faces[ i ];
-
-		var a = face[ 0 ] + shapesOffset;
-		var b = face[ 1 ] + shapesOffset;
-		var c = face[ 2 ] + shapesOffset;
-
-		this.faces.push( new Face3( a, b, c, null, null, material ) );
-		this.faceVertexUvs[ 0 ].push( uvgen.generateTopUV( this, a, b, c ) );
+		curveSegments = curveSegments.curveSegments;
 
 	}
 
-};
+	this.parameters = {
+		shapes: shapes,
+		curveSegments: curveSegments
+	};
+
+	this.fromBufferGeometry( new ShapeBufferGeometry( shapes, curveSegments ) );
+	this.mergeVertices();
+
+}
+
+ShapeGeometry.prototype = Object.create( Geometry.prototype );
+ShapeGeometry.prototype.constructor = ShapeGeometry;
 
 /**
  * @author WestLangley / http://github.com/WestLangley
@@ -27971,6 +28157,7 @@ var Geometries = Object.freeze({
 	LatheGeometry: LatheGeometry,
 	LatheBufferGeometry: LatheBufferGeometry,
 	ShapeGeometry: ShapeGeometry,
+	ShapeBufferGeometry: ShapeBufferGeometry,
 	ExtrudeGeometry: ExtrudeGeometry,
 	EdgesGeometry: EdgesGeometry,
 	ConeGeometry: ConeGeometry,
@@ -28850,13 +29037,13 @@ var DefaultLoadingManager = new LoadingManager();
  * @author mrdoob / http://mrdoob.com/
  */
 
-function XHRLoader( manager ) {
+function FileLoader( manager ) {
 
 	this.manager = ( manager !== undefined ) ? manager : DefaultLoadingManager;
 
 }
 
-Object.assign( XHRLoader.prototype, {
+Object.assign( FileLoader.prototype, {
 
 	load: function ( url, onLoad, onProgress, onError ) {
 
@@ -28992,7 +29179,7 @@ Object.assign( XHRLoader.prototype, {
 					// Some browsers return HTTP Status 0 when using non-http protocol
 					// e.g. 'file://' or 'data://'. Handle as success.
 
-					console.warn( 'THREE.XHRLoader: HTTP Status 0 received.' );
+					console.warn( 'THREE.FileLoader: HTTP Status 0 received.' );
 
 					if ( onLoad ) onLoad( response );
 
@@ -29029,7 +29216,7 @@ Object.assign( XHRLoader.prototype, {
 			if ( this.responseType !== undefined ) request.responseType = this.responseType;
 			if ( this.withCredentials !== undefined ) request.withCredentials = this.withCredentials;
 
-			if ( request.overrideMimeType ) request.overrideMimeType( 'text/plain' );
+			if ( request.overrideMimeType ) request.overrideMimeType( this.mimeType !== undefined ? this.mimeType : 'text/plain' );
 
 			request.send( null );
 
@@ -29058,6 +29245,13 @@ Object.assign( XHRLoader.prototype, {
 	setWithCredentials: function ( value ) {
 
 		this.withCredentials = value;
+		return this;
+
+	},
+
+	setMimeType: function ( value ) {
+
+		this.mimeType = value;
 		return this;
 
 	}
@@ -29090,7 +29284,7 @@ Object.assign( CompressedTextureLoader.prototype, {
 		var texture = new CompressedTexture();
 		texture.image = images;
 
-		var loader = new XHRLoader( this.manager );
+		var loader = new FileLoader( this.manager );
 		loader.setPath( this.path );
 		loader.setResponseType( 'arraybuffer' );
 
@@ -29222,7 +29416,7 @@ Object.assign( BinaryTextureLoader.prototype, {
 
 		var texture = new DataTexture();
 
-		var loader = new XHRLoader( this.manager );
+		var loader = new FileLoader( this.manager );
 		loader.setResponseType( 'arraybuffer' );
 
 		loader.load( url, function ( buffer ) {
@@ -29323,7 +29517,7 @@ Object.assign( ImageLoader.prototype, {
 
 		} else {
 
-			var loader = new XHRLoader();
+			var loader = new FileLoader();
 			loader.setPath( this.path );
 			loader.setResponseType( 'blob' );
 			loader.setWithCredentials( this.withCredentials );
@@ -31653,7 +31847,7 @@ Object.assign( MaterialLoader.prototype, {
 
 		var scope = this;
 
-		var loader = new XHRLoader( scope.manager );
+		var loader = new FileLoader( scope.manager );
 		loader.load( url, function ( text ) {
 
 			onLoad( scope.parse( JSON.parse( text ) ) );
@@ -31807,7 +32001,7 @@ Object.assign( BufferGeometryLoader.prototype, {
 
 		var scope = this;
 
-		var loader = new XHRLoader( scope.manager );
+		var loader = new FileLoader( scope.manager );
 		loader.load( url, function ( text ) {
 
 			onLoad( scope.parse( JSON.parse( text ) ) );
@@ -32240,7 +32434,7 @@ Object.assign( JSONLoader.prototype, {
 
 		var texturePath = this.texturePath && ( typeof this.texturePath === "string" ) ? this.texturePath : Loader.prototype.extractUrlBase( url );
 
-		var loader = new XHRLoader( this.manager );
+		var loader = new FileLoader( this.manager );
 		loader.setWithCredentials( this.withCredentials );
 		loader.load( url, function ( text ) {
 
@@ -32774,10 +32968,22 @@ Object.assign( ObjectLoader.prototype, {
 
 		var scope = this;
 
-		var loader = new XHRLoader( scope.manager );
+		var loader = new FileLoader( scope.manager );
 		loader.load( url, function ( text ) {
 
-			var json = JSON.parse( text );
+			var json = null;
+
+			try {
+
+				json = JSON.parse( text );
+
+			} catch ( error ) {
+
+				console.error( 'THREE:ObjectLoader: Can\'t parse ' + url + '.', error.message );
+				return;
+
+			}
+
 			var metadata = json.metadata;
 
 			if ( metadata === undefined || metadata.type === undefined || metadata.type.toLowerCase() === 'geometry' ) {
@@ -34995,7 +35201,7 @@ Object.assign( FontLoader.prototype, {
 
 		var scope = this;
 
-		var loader = new XHRLoader( this.manager );
+		var loader = new FileLoader( this.manager );
 		loader.load( url, function ( text ) {
 
 			var json;
@@ -35029,17 +35235,27 @@ Object.assign( FontLoader.prototype, {
 
 var context;
 
-function getAudioContext() {
+var AudioContext = {
 
-	if ( context === undefined ) {
+	getContext: function () {
 
-		context = new ( window.AudioContext || window.webkitAudioContext )();
+		if ( context === undefined ) {
+
+			context = new ( window.AudioContext || window.webkitAudioContext )();
+
+		}
+
+		return context;
+
+	},
+
+	setContext: function ( value ) {
+
+		context = value;
 
 	}
 
-	return context;
-
-}
+};
 
 /**
  * @author Reece Aaron Lecrivain / http://reecenotes.com/
@@ -35055,11 +35271,11 @@ Object.assign( AudioLoader.prototype, {
 
 	load: function ( url, onLoad, onProgress, onError ) {
 
-		var loader = new XHRLoader( this.manager );
+		var loader = new FileLoader( this.manager );
 		loader.setResponseType( 'arraybuffer' );
 		loader.load( url, function ( buffer ) {
 
-			var context = getAudioContext();
+			var context = AudioContext.getContext();
 
 			context.decodeAudioData( buffer, function ( audioBuffer ) {
 
@@ -35262,7 +35478,7 @@ function AudioListener() {
 
 	this.type = 'AudioListener';
 
-	this.context = getAudioContext();
+	this.context = AudioContext.getContext();
 
 	this.gain = this.context.createGain();
 	this.gain.connect( this.context.destination );
@@ -41131,6 +41347,13 @@ function WireframeHelper( object, hex ) {
 
 //
 
+function XHRLoader( manager ) {
+	console.warn( 'THREE.XHRLoader has been renamed to THREE.FileLoader.' );
+	return new FileLoader( manager );
+}
+
+//
+
 Object.assign( Box2.prototype, {
 	center: function ( optionalTarget ) {
 		console.warn( 'THREE.Box2: .center() has been renamed to .getCenter().' );
@@ -41488,6 +41711,22 @@ Object.defineProperties( BufferGeometry.prototype, {
 
 //
 
+Object.defineProperties( Uniform.prototype, {
+	dynamic: {
+		set: function ( value ) {
+			console.warn( 'THREE.Uniform: .dynamic has been removed. Use object.onBeforeRender() instead.' );
+		}
+	},
+	onUpdate: {
+		value: function () {
+			console.warn( 'THREE.Uniform: .onUpdate() has been removed. Use object.onBeforeRender() instead.' );
+			return this;
+		}
+	}
+} );
+
+//
+
 Object.defineProperties( Material.prototype, {
 	wrapAround: {
 		get: function () {
@@ -41548,22 +41787,6 @@ EventDispatcher.prototype = Object.assign( Object.create( {
 	}
 
 } ), EventDispatcher.prototype );
-
-//
-
-Object.defineProperties( Uniform.prototype, {
-	dynamic: {
-		set: function ( value ) {
-			console.warn( 'THREE.Uniform: .dynamic has been removed. Use object.onBeforeRender() instead.' );
-		}
-	},
-	onUpdate: {
-		value: function () {
-			console.warn( 'THREE.Uniform: .onUpdate() has been removed. Use object.onBeforeRender() instead.' );
-			return this;
-		}
-	}
-} );
 
 //
 
@@ -41908,11 +42131,5 @@ function CanvasRenderer () {
 
 }
 
-export { WebGLRenderTargetCube, WebGLRenderTarget, WebGLRenderer, ShaderLib, UniformsLib, UniformsUtils, ShaderChunk, FogExp2, Fog, Scene, LensFlare, Sprite, LOD, SkinnedMesh, Skeleton, Bone, Mesh, LineSegments, Line, Points, Group, VideoTexture, DataTexture, CompressedTexture, CubeTexture, CanvasTexture, DepthTexture, TextureIdCount, Texture, MaterialIdCount, CompressedTextureLoader, BinaryTextureLoader, DataTextureLoader, CubeTextureLoader, TextureLoader, ObjectLoader, MaterialLoader, BufferGeometryLoader, DefaultLoadingManager, LoadingManager, JSONLoader, ImageLoader, FontLoader, XHRLoader, Loader, Cache, AudioLoader, SpotLightShadow, SpotLight, PointLight, HemisphereLight, DirectionalLightShadow, DirectionalLight, AmbientLight, LightShadow, Light, StereoCamera, PerspectiveCamera, OrthographicCamera, CubeCamera, Camera, AudioListener, PositionalAudio, getAudioContext, AudioAnalyser, Audio, VectorKeyframeTrack, StringKeyframeTrack, QuaternionKeyframeTrack, NumberKeyframeTrack, ColorKeyframeTrack, BooleanKeyframeTrack, PropertyMixer, PropertyBinding, KeyframeTrack, AnimationUtils, AnimationObjectGroup, AnimationMixer, AnimationClip, Uniform, InstancedBufferGeometry, BufferGeometry, GeometryIdCount, Geometry, InterleavedBufferAttribute, InstancedInterleavedBuffer, InterleavedBuffer, InstancedBufferAttribute, DynamicBufferAttribute, Float64Attribute, Float32Attribute, Uint32Attribute, Int32Attribute, Uint16Attribute, Int16Attribute, Uint8ClampedAttribute, Uint8Attribute, Int8Attribute, BufferAttribute, Face3, Object3DIdCount, Object3D, Raycaster, Layers, EventDispatcher, Clock, QuaternionLinearInterpolant, LinearInterpolant, DiscreteInterpolant, CubicInterpolant, Interpolant, Triangle, Spline, _Math as Math, Spherical, Plane, Frustum, Sphere, Ray, Matrix4, Matrix3, Box3, Box2, Line3, Euler, Vector4, Vector3, Vector2, Quaternion, ColorKeywords, Color, MorphBlendMesh, ImmediateRenderObject, VertexNormalsHelper, SpotLightHelper, SkeletonHelper, PointLightHelper, HemisphereLightHelper, GridHelper, FaceNormalsHelper, DirectionalLightHelper, CameraHelper, BoundingBoxHelper, BoxHelper, ArrowHelper, AxisHelper, ClosedSplineCurve3, CatmullRomCurve3, SplineCurve3, CubicBezierCurve3, QuadraticBezierCurve3, LineCurve3, ArcCurve, EllipseCurve, SplineCurve, CubicBezierCurve, QuadraticBezierCurve, LineCurve, Shape, ShapePath, Path, Font, CurvePath, Curve, ShapeUtils, SceneUtils, CurveUtils, WireframeGeometry, ParametricGeometry, ParametricBufferGeometry, TetrahedronGeometry, TetrahedronBufferGeometry, OctahedronGeometry, OctahedronBufferGeometry, IcosahedronGeometry, IcosahedronBufferGeometry, DodecahedronGeometry, DodecahedronBufferGeometry, PolyhedronGeometry, PolyhedronBufferGeometry, TubeGeometry, TubeBufferGeometry, TorusKnotGeometry, TorusKnotBufferGeometry, TorusGeometry, TorusBufferGeometry, TextGeometry, SphereBufferGeometry, SphereGeometry, RingGeometry, RingBufferGeometry, PlaneBufferGeometry, PlaneGeometry, LatheGeometry, LatheBufferGeometry, ShapeGeometry, ExtrudeGeometry, EdgesGeometry, ConeGeometry, ConeBufferGeometry, CylinderGeometry, CylinderBufferGeometry, CircleBufferGeometry, CircleGeometry, BoxBufferGeometry, BoxGeometry, ShadowMaterial, SpriteMaterial, RawShaderMaterial, ShaderMaterial, PointsMaterial, MultiMaterial, MeshPhysicalMaterial, MeshStandardMaterial, MeshPhongMaterial, MeshNormalMaterial, MeshLambertMaterial, MeshDepthMaterial, MeshBasicMaterial, LineDashedMaterial, LineBasicMaterial, Material, REVISION, MOUSE, CullFaceNone, CullFaceBack, CullFaceFront, CullFaceFrontBack, FrontFaceDirectionCW, FrontFaceDirectionCCW, BasicShadowMap, PCFShadowMap, PCFSoftShadowMap, FrontSide, BackSide, DoubleSide, FlatShading, SmoothShading, NoColors, FaceColors, VertexColors, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, BlendingMode, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, Uncharted2ToneMapping, CineonToneMapping, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, SphericalReflectionMapping, CubeUVReflectionMapping, CubeUVRefractionMapping, TextureMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, TextureWrapping, NearestFilter, NearestMipMapNearestFilter, NearestMipMapLinearFilter, LinearFilter, LinearMipMapNearestFilter, LinearMipMapLinearFilter, TextureFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedShort565Type, UnsignedInt248Type, AlphaFormat, RGBFormat, RGBAFormat, LuminanceFormat, LuminanceAlphaFormat, RGBEFormat, DepthFormat, DepthStencilFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, LinearEncoding, sRGBEncoding, GammaEncoding, RGBEEncoding, LogLuvEncoding, RGBM7Encoding, RGBM16Encoding, RGBDEncoding, BasicDepthPacking, RGBADepthPacking, BoxGeometry as CubeGeometry, Face4, LineStrip, LinePieces, MultiMaterial as MeshFaceMaterial, PointCloud, Sprite as Particle, ParticleSystem, PointCloudMaterial, ParticleBasicMaterial, ParticleSystemMaterial, Vertex, EdgesHelper, WireframeHelper, GeometryUtils, ImageUtils, Projector, CanvasRenderer };
-
-Object.defineProperty( exports, 'AudioContext', {
-	get: function () {
-		return exports.getAudioContext();
-	}
-});
+export { WebGLRenderTargetCube, WebGLRenderTarget, WebGLRenderer, WebGL2Renderer, ShaderLib, UniformsLib, UniformsUtils, ShaderChunk, FogExp2, Fog, Scene, LensFlare, Sprite, LOD, SkinnedMesh, Skeleton, Bone, Mesh, LineSegments, Line, Points, Group, VideoTexture, DataTexture, CompressedTexture, CubeTexture, CanvasTexture, DepthTexture, TextureIdCount, Texture, MaterialIdCount, CompressedTextureLoader, BinaryTextureLoader, DataTextureLoader, CubeTextureLoader, TextureLoader, ObjectLoader, MaterialLoader, BufferGeometryLoader, DefaultLoadingManager, LoadingManager, JSONLoader, ImageLoader, FontLoader, FileLoader, Loader, Cache, AudioLoader, SpotLightShadow, SpotLight, PointLight, HemisphereLight, DirectionalLightShadow, DirectionalLight, AmbientLight, LightShadow, Light, StereoCamera, PerspectiveCamera, OrthographicCamera, CubeCamera, Camera, AudioListener, PositionalAudio, AudioContext, AudioAnalyser, Audio, VectorKeyframeTrack, StringKeyframeTrack, QuaternionKeyframeTrack, NumberKeyframeTrack, ColorKeyframeTrack, BooleanKeyframeTrack, PropertyMixer, PropertyBinding, KeyframeTrack, AnimationUtils, AnimationObjectGroup, AnimationMixer, AnimationClip, Uniform, InstancedBufferGeometry, BufferGeometry, GeometryIdCount, Geometry, InterleavedBufferAttribute, InstancedInterleavedBuffer, InterleavedBuffer, InstancedBufferAttribute, DynamicBufferAttribute, Float64Attribute, Float32Attribute, Uint32Attribute, Int32Attribute, Uint16Attribute, Int16Attribute, Uint8ClampedAttribute, Uint8Attribute, Int8Attribute, BufferAttribute, Face3, Object3DIdCount, Object3D, Raycaster, Layers, EventDispatcher, Clock, QuaternionLinearInterpolant, LinearInterpolant, DiscreteInterpolant, CubicInterpolant, Interpolant, Triangle, Spline, _Math as Math, Spherical, Plane, Frustum, Sphere, Ray, Matrix4, Matrix3, Box3, Box2, Line3, Euler, Vector4, Vector3, Vector2, Quaternion, ColorKeywords, Color, MorphBlendMesh, ImmediateRenderObject, VertexNormalsHelper, SpotLightHelper, SkeletonHelper, PointLightHelper, HemisphereLightHelper, GridHelper, FaceNormalsHelper, DirectionalLightHelper, CameraHelper, BoundingBoxHelper, BoxHelper, ArrowHelper, AxisHelper, ClosedSplineCurve3, CatmullRomCurve3, SplineCurve3, CubicBezierCurve3, QuadraticBezierCurve3, LineCurve3, ArcCurve, EllipseCurve, SplineCurve, CubicBezierCurve, QuadraticBezierCurve, LineCurve, Shape, ShapePath, Path, Font, CurvePath, Curve, ShapeUtils, SceneUtils, CurveUtils, WireframeGeometry, ParametricGeometry, ParametricBufferGeometry, TetrahedronGeometry, TetrahedronBufferGeometry, OctahedronGeometry, OctahedronBufferGeometry, IcosahedronGeometry, IcosahedronBufferGeometry, DodecahedronGeometry, DodecahedronBufferGeometry, PolyhedronGeometry, PolyhedronBufferGeometry, TubeGeometry, TubeBufferGeometry, TorusKnotGeometry, TorusKnotBufferGeometry, TorusGeometry, TorusBufferGeometry, TextGeometry, SphereBufferGeometry, SphereGeometry, RingGeometry, RingBufferGeometry, PlaneBufferGeometry, PlaneGeometry, LatheGeometry, LatheBufferGeometry, ShapeGeometry, ShapeBufferGeometry, ExtrudeGeometry, EdgesGeometry, ConeGeometry, ConeBufferGeometry, CylinderGeometry, CylinderBufferGeometry, CircleBufferGeometry, CircleGeometry, BoxBufferGeometry, BoxGeometry, ShadowMaterial, SpriteMaterial, RawShaderMaterial, ShaderMaterial, PointsMaterial, MultiMaterial, MeshPhysicalMaterial, MeshStandardMaterial, MeshPhongMaterial, MeshNormalMaterial, MeshLambertMaterial, MeshDepthMaterial, MeshBasicMaterial, LineDashedMaterial, LineBasicMaterial, Material, REVISION, MOUSE, CullFaceNone, CullFaceBack, CullFaceFront, CullFaceFrontBack, FrontFaceDirectionCW, FrontFaceDirectionCCW, BasicShadowMap, PCFShadowMap, PCFSoftShadowMap, FrontSide, BackSide, DoubleSide, FlatShading, SmoothShading, NoColors, FaceColors, VertexColors, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, BlendingMode, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, Uncharted2ToneMapping, CineonToneMapping, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, SphericalReflectionMapping, CubeUVReflectionMapping, CubeUVRefractionMapping, TextureMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, TextureWrapping, NearestFilter, NearestMipMapNearestFilter, NearestMipMapLinearFilter, LinearFilter, LinearMipMapNearestFilter, LinearMipMapLinearFilter, TextureFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedShort565Type, UnsignedInt248Type, AlphaFormat, RGBFormat, RGBAFormat, LuminanceFormat, LuminanceAlphaFormat, RGBEFormat, DepthFormat, DepthStencilFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, LinearEncoding, sRGBEncoding, GammaEncoding, RGBEEncoding, LogLuvEncoding, RGBM7Encoding, RGBM16Encoding, RGBDEncoding, BasicDepthPacking, RGBADepthPacking, BoxGeometry as CubeGeometry, Face4, LineStrip, LinePieces, MultiMaterial as MeshFaceMaterial, PointCloud, Sprite as Particle, ParticleSystem, PointCloudMaterial, ParticleBasicMaterial, ParticleSystemMaterial, Vertex, EdgesHelper, WireframeHelper, XHRLoader, GeometryUtils, ImageUtils, Projector, CanvasRenderer };
 //# sourceMappingURL=three.modules.js.map

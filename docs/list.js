@@ -9,12 +9,12 @@ var list = {
 
 	"Reference": {
 		"Constants": [
+			[ "Animation", "api/constants/Animation" ],
 			[ "CustomBlendingEquation", "api/constants/CustomBlendingEquations" ],
 			[ "DrawModes", "api/constants/DrawModes" ],
-			[ "GLState", "api/constants/GLState" ],
 			[ "Materials", "api/constants/Materials" ],
-			[ "ShadowingTypes", "api/constants/ShadowingTypes" ],
-			[ "Textures", "api/constants/Textures" ]
+			[ "Textures", "api/constants/Textures" ],
+			[ "WebGLRenderer", "api/constants/WebGLRenderer" ]
 		],
 
 		"Cameras": [
@@ -63,6 +63,7 @@ var list = {
 			[ "PolyhedronGeometry", "api/geometries/PolyhedronGeometry" ],
 			[ "RingBufferGeometry", "api/geometries/RingBufferGeometry" ],
 			[ "RingGeometry", "api/geometries/RingGeometry" ],
+			[ "ShapeBufferGeometry", "api/geometries/ShapeBufferGeometry" ],
 			[ "ShapeGeometry", "api/geometries/ShapeGeometry" ],
 			[ "SphereBufferGeometry", "api/geometries/SphereBufferGeometry" ],
 			[ "SphereGeometry", "api/geometries/SphereGeometry" ],
@@ -96,6 +97,7 @@ var list = {
 			[ "BufferGeometryLoader", "api/loaders/BufferGeometryLoader" ],
 			[ "Cache", "api/loaders/Cache" ],
 			[ "ColladaLoader", "api/loaders/ColladaLoader" ],
+			[ "FileLoader", "api/loaders/FileLoader" ],
 			[ "GLTFLoader", "api/loaders/GLTFLoader" ],
 			[ "ImageLoader", "api/loaders/ImageLoader" ],
 			[ "JSONLoader", "api/loaders/JSONLoader" ],
@@ -108,8 +110,7 @@ var list = {
 			[ "PDBLoader", "api/loaders/PDBLoader" ],
 			[ "SVGLoader", "api/loaders/SVGLoader" ],
 			[ "TextureLoader", "api/loaders/TextureLoader" ],
-			[ "TGALoader", "api/loaders/TGALoader" ],
-			[ "XHRLoader", "api/loaders/XHRLoader" ]
+			[ "TGALoader", "api/loaders/TGALoader" ]
 		],
 
 		"Materials": [
@@ -143,6 +144,7 @@ var list = {
 			[ "Quaternion", "api/math/Quaternion" ],
 			[ "Ray", "api/math/Ray" ],
 			[ "Sphere", "api/math/Sphere" ],
+			[ "Spherical", "api/math/Spherical" ],
 			[ "Spline", "api/math/Spline" ],
 			[ "Triangle", "api/math/Triangle" ],
 			[ "Vector2", "api/math/Vector2" ],
@@ -195,10 +197,12 @@ var list = {
 		],
 
 		"Textures": [
+			[ "CanvasTexture", "api/textures/CanvasTexture" ],
 			[ "CompressedTexture", "api/textures/CompressedTexture" ],
 			[ "CubeTexture", "api/textures/CubeTexture" ],
 			[ "DataTexture", "api/textures/DataTexture" ],
-			[ "Texture", "api/textures/Texture" ]
+			[ "Texture", "api/textures/Texture" ],
+			[ "VideoTexture", "api/textures/VideoTexture" ]
 		],
 
 		"Animation": [
