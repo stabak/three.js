@@ -23,7 +23,6 @@ export default {
     entry: 'src/Three.js',
     indent: '\t',
     plugins: [
-        glsl()
         glsl(),
         // babel({
         //     externalHelpers: false,
